@@ -1,61 +1,63 @@
-name: MLflow Workflow CI Advanced
+name: Submission MLOps Pipeline Advanced
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
-  training-and-docker:
+  build-and-run:
     runs-on: ubuntu-latest
+
+    env:
+      # Menggunakan Nama Secrets Anda
+      MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Retail-Product-Classification.mlflow
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12.7'
+    - name: Set up Python 3.12.7
+      uses: actions/setup-python@v4
+      with:
+        [cite_start]python-version: "3.12.7" # Sesuai rekomendasi environment [cite: 76]
 
-      - name: Install Dependencies
-        run: |
-          pip install mlflow==2.19.0 dagshub scikit-learn pandas matplotlib seaborn
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas scikit-learn numpy matplotlib seaborn mlflow==2.19.0 dagshub
 
-      - name: Run MLflow Retraining
-        id: train_model
-        env:
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Retail-Product-Classification.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-        run: |
-          # Menggunakan --env-manager local untuk menghindari error 'activate' Conda
-          # MLProject_Folder adalah nama folder tempat file MLProject Anda berada
-          mlflow run MLProject_Folder/ -e main --env-manager local > mlflow_output.txt 2>&1
-          cat mlflow_output.txt
-          
-          # Mengambil Run ID dari output untuk digunakan di step Docker
-          RUN_ID=$(grep -oP 'ID \s* \K\w+' mlflow_output.txt | head -n 1)
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+    - name: Run MLflow Project Retraining
+      # KRITERIA WAJIB: Menggunakan mlflow run, bukan python manual
+      run: |
+        mlflow run MLProject_Folder/ -e main --env-manager local > mlflow_output.txt 2>&1
+        cat mlflow_output.txt
+        # Mengambil RUN_ID secara otomatis dari output
+        RUN_ID=$(grep -oP 'ID \s* \K\w+' mlflow_output.txt | head -n 1)
+        echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-      - name: Login to Docker Hub
-        if: success()
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Upload Artifacts to GitHub
+      # KRITERIA SKILLED: Menyimpan artefak ke repositori GitHub
+      uses: actions/upload-artifact@v4
+      with:
+        name: trained-model-artifacts
+        path: |
+          ./MLProject_Folder/confusion_matrix.png
+          ./MLProject_Folder/classification_report.txt
 
-      - name: Build and Push Docker Image (Advanced Requirement)
-        if: success()
-        run: |
-          # Menggunakan mlflow build-docker sesuai kriteria Advanced
-          # Format model path: runs:/<run_id>/<model_name>
-          mlflow models build-docker \
-            -m "runs:/${{ env.RUN_ID }}/advanced_model" \
-            -n "${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest" \
-            --install-mlflow
-          
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Log Status
-        run: |
-          echo "Workflow CI Selesai."
-          echo "Run ID yang diproses: ${{ env.RUN_ID }}"
+    - name: Build Docker via MLflow
+      # KRITERIA ADVANCED: Menggunakan mlflow build-docker
+      run: |
+        mlflow models build-docker \
+          -m "runs:/${{ env.RUN_ID }}/advanced_model" \
+          -n "${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest" \
+          --install-mlflow
+        
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest
