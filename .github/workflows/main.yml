@@ -1,43 +1,56 @@
-name: MLflow CI Retraining and Docker
+name: MLflow Workflow CI Advanced
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
-  retrain-and-deploy:
+  training-and-docker:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        [cite_start]uses: actions/checkout@v3 [cite: 146]
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12.7"
+          [cite_start]python-version: '3.12.7' [cite: 76]
 
       - name: Install Dependencies
         run: |
-          pip install mlflow==2.19.0 dagshub scikit-learn pandas
+          pip install --upgrade pip 
+          pip install mlflow==2.19.0 dagshub scikit-learn pandas matplotlib seaborn [cite: 10, 77]
 
       - name: Run MLflow Retraining
+        id: train_model
         env:
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Retail-Product-Classification.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+          [cite_start]MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Retail-Product-Classification.mlflow [cite: 92]
+          [cite_start]MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }} [cite: 92]
+          [cite_start]MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }} [cite: 92]
         run: |
-          mlflow run MLProject_Folder/ -e main
+          # Menggunakan --env-manager local agar menggunakan Python 3.12.7 dari runner 
+          mlflow run MLProject_Folder/ -e main --env-manager local > mlflow_output.txt 2>&1 [cite: 15]
+          cat mlflow_output.txt
+          
+          # Mengambil Run ID untuk proses Docker selanjutnya [cite: 15, 90]
+          RUN_ID=$(grep -oP 'ID \s* \K\w+' mlflow_output.txt | head -n 1)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        if: success()
+        [cite_start]uses: docker/login-action@v2 [cite: 12, 15]
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and Push Docker Image
+        if: success()
         run: |
+          # mlflow build-docker menggunakan model yang baru dilatih 
+          # Pastikan path model 'advanced_model' sesuai dengan yang ada di skrip Anda [cite: 87, 138]
           mlflow models build-docker \
-            -m "https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Retail-Product-Classification.mlflow#runs:/<run_id_anda>/advanced_model" \
-            -n "${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest"
-
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest
+            -m "runs:/${{ env.RUN_ID }}/advanced_model" \
+            -n "${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest" \
+            --install-mlflow [cite: 12]
+          
+          [cite_start]docker push ${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest [cite: 15]
