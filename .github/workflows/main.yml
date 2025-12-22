@@ -9,48 +9,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        [cite_start]uses: actions/checkout@v3 [cite: 146]
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          [cite_start]python-version: '3.12.7' [cite: 76]
+          python-version: '3.12.7'
 
       - name: Install Dependencies
         run: |
-          pip install --upgrade pip 
-          pip install mlflow==2.19.0 dagshub scikit-learn pandas matplotlib seaborn [cite: 10, 77]
+          pip install mlflow==2.19.0 dagshub scikit-learn pandas matplotlib seaborn
 
       - name: Run MLflow Retraining
         id: train_model
         env:
-          [cite_start]MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Retail-Product-Classification.mlflow [cite: 92]
-          [cite_start]MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }} [cite: 92]
-          [cite_start]MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }} [cite: 92]
+          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Retail-Product-Classification.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Menggunakan --env-manager local agar menggunakan Python 3.12.7 dari runner 
-          mlflow run MLProject_Folder/ -e main --env-manager local > mlflow_output.txt 2>&1 [cite: 15]
+          # Menggunakan --env-manager local untuk menghindari error 'activate' Conda
+          # MLProject_Folder adalah nama folder tempat file MLProject Anda berada
+          mlflow run MLProject_Folder/ -e main --env-manager local > mlflow_output.txt 2>&1
           cat mlflow_output.txt
           
-          # Mengambil Run ID untuk proses Docker selanjutnya [cite: 15, 90]
+          # Mengambil Run ID dari output untuk digunakan di step Docker
           RUN_ID=$(grep -oP 'ID \s* \K\w+' mlflow_output.txt | head -n 1)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
         if: success()
-        [cite_start]uses: docker/login-action@v2 [cite: 12, 15]
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Docker Image (Advanced Requirement)
         if: success()
         run: |
-          # mlflow build-docker menggunakan model yang baru dilatih 
-          # Pastikan path model 'advanced_model' sesuai dengan yang ada di skrip Anda [cite: 87, 138]
+          # Menggunakan mlflow build-docker sesuai kriteria Advanced
+          # Format model path: runs:/<run_id>/<model_name>
           mlflow models build-docker \
             -m "runs:/${{ env.RUN_ID }}/advanced_model" \
             -n "${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest" \
-            --install-mlflow [cite: 12]
+            --install-mlflow
           
-          [cite_start]docker push ${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest [cite: 15]
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/retail-product-classification:latest
+
+      - name: Log Status
+        run: |
+          echo "Workflow CI Selesai."
+          echo "Run ID yang diproses: ${{ env.RUN_ID }}"
