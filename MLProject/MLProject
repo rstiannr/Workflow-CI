@@ -1,7 +1,5 @@
-name: Retail_Classification_CI
-
+name: Submission_MLOps_Resti
 conda_env: conda.yaml
-
 entry_points:
   main:
     command: "python modelling.py"

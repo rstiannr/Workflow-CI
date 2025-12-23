@@ -1,0 +1,13 @@
+mlflow==2.19.0
+fastapi
+uvicorn
+prometheus-client
+pandas
+scikit-learn
+dvc
+ipykernel
+matplotlib
+seaborn
+numpy
+openpyxl
+dagshub
