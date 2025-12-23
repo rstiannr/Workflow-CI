@@ -31,7 +31,10 @@ jobs:
 
     - name: Run MLflow Project
       working-directory: ./MLProject_Folder
-      run: mlflow run . --env-manager local
+      run: |
+        mlflow run . \
+          --env-manager local \
+          --experiment-name "Retail_Classification_Advanced"
 
     - name: Get latest MLflow run_id
       id: get_run_id
