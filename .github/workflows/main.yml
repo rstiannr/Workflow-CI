@@ -31,7 +31,7 @@ jobs:
 
     - name: Run MLflow Project
       working-directory: ./MLProject_Folder
-      run: mlflow run . --use-conda false
+      run: mlflow run . --env-manager local
 
     - name: Get latest MLflow run_id
       id: get_run_id
