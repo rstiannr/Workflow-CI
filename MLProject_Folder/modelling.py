@@ -21,8 +21,6 @@ def train_advanced():
         mlflow=True,
     )
 
-    mlflow.set_experiment("Retail_Classification_Advanced")
-
     data_path = 'data_training_final.csv'
     df = pd.read_csv(data_path)
 
@@ -49,30 +47,30 @@ def train_advanced():
     grid_search.fit(X_train, y_train)
     best_model = grid_search.best_estimator_
 
-    with mlflow.start_run(run_name="DecisionTree_Advanced"):
-        mlflow.log_params(grid_search.best_params_)
-        y_pred = best_model.predict(X_test)
-        mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
-        mlflow.log_metric(
-            "f1_weighted",
-            f1_score(y_test, y_pred, average='weighted')
-        )
+    mlflow.log_params(grid_search.best_params_)
 
-        report = classification_report(y_test, y_pred)
-        with open("classification_report.txt", "w") as f:
-            f.write(report)
-        mlflow.log_artifact("classification_report.txt")
+    y_pred = best_model.predict(X_test)
+    mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
+    mlflow.log_metric(
+        "f1_weighted",
+        f1_score(y_test, y_pred, average='weighted')
+    )
 
-        plt.figure(figsize=(8, 6))
-        cm = confusion_matrix(y_test, y_pred)
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title('Confusion Matrix')
-        plt.savefig("confusion_matrix.png")
-        mlflow.log_artifact("confusion_matrix.png")
+    report = classification_report(y_test, y_pred)
+    with open("classification_report.txt", "w") as f:
+        f.write(report)
+    mlflow.log_artifact("classification_report.txt")
 
-        mlflow.sklearn.log_model(best_model, "model")
+    plt.figure(figsize=(8, 6))
+    cm = confusion_matrix(y_test, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title('Confusion Matrix')
+    plt.savefig("confusion_matrix.png")
+    mlflow.log_artifact("confusion_matrix.png")
 
-        print("Sistem: Model berhasil dikirim ke DagsHub.")
+    mlflow.sklearn.log_model(best_model, "model")
+
+    print("Sistem: Pelatihan selesai.")
 
 
 if __name__ == "__main__":
