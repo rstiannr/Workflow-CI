@@ -41,7 +41,7 @@ jobs:
         import os
         try:
             # Mencari run terakhir dari eksperimen
-            runs = mlflow.search_runs(experiment_names=["Retail_Product_Classification_Basic"], order_by=["start_time DESC"])
+            runs = mlflow.search_runs(experiment_names=["Retail_Classification_Advanced"], order_by=["start_time DESC"])
             if not runs.empty:
                 run_id = runs.iloc[0].run_id
                 with open(os.environ['GITHUB_ENV'], 'a') as f:
